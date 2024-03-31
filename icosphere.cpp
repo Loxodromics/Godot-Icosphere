@@ -16,38 +16,6 @@ Icosphere::~Icosphere() {
 	indices.clear();
 }
 
-// This function gets any event calls from the engine
-void Icosphere::_notification(int p_what) {
-
-	// print_line(vformat("notification: what: %d", p_what));
-	switch (p_what) {
-
-		case NOTIFICATION_READY: {
-			_ready();
-		} break;
-		default:
-			break;
-
-	}
-}
-
-void Icosphere::_process(double delta) {}
-
-void Icosphere::_bind_methods()
-{
-	print_line("Icosphere::~_bind_methods");
-
-	ClassDB::bind_method(D_METHOD("setRadius", "radius"), &Icosphere::setRadius);
-	ClassDB::bind_method(D_METHOD("getRadius"), &Icosphere::getRadius);
-
-	ClassDB::bind_method(D_METHOD("setSubdivisions", "subdivisions"), &Icosphere::setSubdivisions);
-	ClassDB::bind_method(D_METHOD("getSubdivisions"), &Icosphere::getSubdivisions);
-
-	// Optionally, add property information for better editor integration
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "radius", PROPERTY_HINT_RANGE, "0.01,100,0.01"), "setRadius", "getRadius");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "subdivisions", PROPERTY_HINT_RANGE, "0,10,1"), "setSubdivisions", "getSubdivisions");
-}
-
 void Icosphere::setRadius(float p_radius) {
 	radius = p_radius;
 	this->update();
@@ -66,26 +34,47 @@ int Icosphere::getSubdivisions() const {
 	return subdivisions;
 }
 
+PackedVector3Array Icosphere::getVertices() const {
+	return this->vertices;
+}
+
+PackedInt32Array Icosphere::getIndices() const {
+	return this->indices;
+}
+
+void Icosphere::_bind_methods()
+{
+	print_line("Icosphere::~_bind_methods");
+
+	ClassDB::bind_method(D_METHOD("setRadius", "radius"), &Icosphere::setRadius);
+	ClassDB::bind_method(D_METHOD("getRadius"), &Icosphere::getRadius);
+
+	ClassDB::bind_method(D_METHOD("setSubdivisions", "subdivisions"), &Icosphere::setSubdivisions);
+	ClassDB::bind_method(D_METHOD("getSubdivisions"), &Icosphere::getSubdivisions);
+
+	// Optionally, add property information for better editor integration
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "radius", PROPERTY_HINT_RANGE, "0.01,100,0.01"), "setRadius", "getRadius");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "subdivisions", PROPERTY_HINT_RANGE, "0,10,1"), "setSubdivisions", "getSubdivisions");
+}
+
+// This function gets any event calls from the engine
+void Icosphere::_notification(int p_what) {
+
+	// print_line(vformat("notification: what: %d", p_what));
+	switch (p_what) {
+
+		case NOTIFICATION_READY: {
+			_ready();
+		} break;
+		default:
+			break;
+	}
+}
+
 // This function gets called when the node is spawned
 void Icosphere::_ready()
 {
 	print_line("Icosphere::_ready");
-}
-
-void _process(double delta) {
-	print_line("Icosphere::_process");
-}
-
-int Icosphere::addVertex(const Vector3& vertex) {
-	vertices.push_back(vertex);
-	// Since PackedVector3Array is zero-indexed, the new vertex's index is the size - 1.
-	return vertices.size() - 1;
-}
-
-void Icosphere::addFace(int v1, int v2, int v3) {
-	indices.push_back(v3);
-	indices.push_back(v2);
-	indices.push_back(v1);
 }
 
 void Icosphere::subdivide(int levels) {
@@ -113,28 +102,6 @@ void Icosphere::subdivide(int levels) {
 		// Use the new set of indices to replace the old one
 		indices = newIndices;
 	}
-}
-
-int Icosphere::getOrCreateMidpointIndex(int index1, int index2) {
-	// Ensure the first index is always the smaller one to avoid duplicates
-	auto key = std::make_pair(MIN(index1, index2), MAX(index1, index2));
-
-	// Check if this midpoint has already been created
-	auto cachedIndex = midpointIndexCache.find(key);
-	if (cachedIndex != midpointIndexCache.end()) {
-		return cachedIndex->second;
-	}
-
-	// Create a new midpoint vertex
-	Vector3 midpoint = vertices[index1].lerp(vertices[index2], 0.5);
-	midpoint = midpoint.normalized() * this->radius;
-	int midpointIndex = vertices.size();
-	vertices.push_back(midpoint);
-
-	// Add to cache
-	midpointIndexCache[key] = midpointIndex;
-
-	return midpointIndex;
 }
 
 void Icosphere::generateMesh() {
@@ -173,17 +140,6 @@ void Icosphere::generateMesh() {
 
 	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
 	set_mesh(mesh);
-}
-
-void Icosphere::update() {
-	// Reset to the base icosahedron before applying subdivisions
-	this->initializeBaseIcosahedron();
-
-	// Apply subdivisions
-	this->subdivide(this->subdivisions);
-
-	// Generate the new mesh
-	this->generateMesh();
 }
 
 void Icosphere::initializeBaseIcosahedron() {
@@ -229,4 +185,50 @@ void Icosphere::initializeBaseIcosahedron() {
 	this->addFace(7, 10, 6);
 	this->addFace(5, 11, 4);
 	this->addFace(10, 8, 4);
+}
+
+void Icosphere::update() {
+	// Reset to the base icosahedron before applying subdivisions
+	this->initializeBaseIcosahedron();
+
+	// Apply subdivisions
+	this->subdivide(this->subdivisions);
+
+	// Generate the new mesh
+	this->generateMesh();
+}
+
+
+int Icosphere::getOrCreateMidpointIndex(int index1, int index2) {
+	// Ensure the first index is always the smaller one to avoid duplicates
+	auto key = std::make_pair(MIN(index1, index2), MAX(index1, index2));
+
+	// Check if this midpoint has already been created
+	auto cachedIndex = midpointIndexCache.find(key);
+	if (cachedIndex != midpointIndexCache.end()) {
+		return cachedIndex->second;
+	}
+
+	// Create a new midpoint vertex
+	Vector3 midpoint = vertices[index1].lerp(vertices[index2], 0.5);
+	midpoint = midpoint.normalized() * this->radius;
+	int midpointIndex = vertices.size();
+	vertices.push_back(midpoint);
+
+	// Add to cache
+	midpointIndexCache[key] = midpointIndex;
+
+	return midpointIndex;
+}
+
+int Icosphere::addVertex(const Vector3& vertex) {
+	vertices.push_back(vertex);
+	// Since PackedVector3Array is zero-indexed, the new vertex's index is the size - 1.
+	return vertices.size() - 1;
+}
+
+void Icosphere::addFace(int v1, int v2, int v3) {
+	indices.push_back(v3);
+	indices.push_back(v2);
+	indices.push_back(v1);
 }
