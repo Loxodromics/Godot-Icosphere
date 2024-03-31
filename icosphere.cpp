@@ -117,6 +117,7 @@ void Icosphere::generateMesh() {
 	// Calculate and set normals and UVs
 	PackedVector3Array normals;
 	PackedVector2Array uvs; // For UV coordinates
+	PackedColorArray colors; // For vertex colors
 	for (int i = 0; i < vertices.size(); i++) {
 		Vector3 normal = vertices[i].normalized();
 		normals.push_back(normal);
@@ -129,9 +130,14 @@ void Icosphere::generateMesh() {
 		float u = atan2(normal.x, normal.z) / (2.0 * Math_PI) + 0.5;
 		float v = acos(normal.y) / Math_PI; // Adjusted to flip the texture
 		uvs.push_back(Vector2(u, v)); // Use Vector2 for UV coordinates
+
+		// Assign a color based on the vertex position or normal
+		Color color = Color(normal.x * 0.5 + 0.5, normal.y * 0.5 + 0.5, normal.z * 0.5 + 0.5);
+		colors.push_back(color);
 	}
 	arrays[Mesh::ARRAY_NORMAL] = normals;
 	arrays[Mesh::ARRAY_TEX_UV] = uvs;
+	arrays[Mesh::ARRAY_COLOR] = colors; // Add the color array to the mesh
 
 	// Set indices for faces
 	if (!indices.is_empty()) {
