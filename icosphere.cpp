@@ -4,52 +4,31 @@
 
 Icosphere::Icosphere() {
 	print_line("Icosphere::Icosphere");
-	float phi = (1.0f + sqrt(5.0f)) * 0.5f; // golden ratio
-	float a = 1.0f;
-	float b = 1.0f / phi;
 
-	// Add vertices
-	this->addVertex(Vector3(0, b, -a));  // v0
-	this->addVertex(Vector3(b, a, 0));   // v1
-	this->addVertex(Vector3(-b, a, 0));  // v2
-	this->addVertex(Vector3(0, b, a));   // v3
-	this->addVertex(Vector3(0, -b, a));  // v4
-	this->addVertex(Vector3(-a, 0, b));  // v5
-	this->addVertex(Vector3(0, -b, -a)); // v6
-	this->addVertex(Vector3(a, 0, -b));  // v7
-	this->addVertex(Vector3(a, 0, b));   // v8
-	this->addVertex(Vector3(-a, 0, -b)); // v9
-	this->addVertex(Vector3(b, -a, 0));  // v10
-	this->addVertex(Vector3(-b, -a, 0)); // v11
-
-	// Add faces
-	this->addFace(2, 1, 0);
-	this->addFace(2, 3, 1);
-	this->addFace(5, 4, 3);
-	this->addFace(4, 8, 3);
-	this->addFace(7, 6, 0);
-	this->addFace(6, 9, 0);
-	this->addFace(11, 10, 4);
-	this->addFace(10, 11, 6);
-	this->addFace(9, 5, 2);
-	this->addFace(5, 9, 11);
-	this->addFace(8, 7, 1);
-	this->addFace(7, 8, 10);
-	this->addFace(2, 5, 3);
-	this->addFace(8, 1, 3);
-	this->addFace(9, 2, 0);
-	this->addFace(1, 7, 0);
-	this->addFace(11, 9, 6);
-	this->addFace(7, 10, 6);
-	this->addFace(5, 11, 4);
-	this->addFace(10, 8, 4);
-
+	this->initializeBaseIcosahedron();
+	this->subdivide(this->subdivisions);
 	this->generateMesh();
 }
 
 Icosphere::~Icosphere() {
 	print_line("Icosphere::~Icosphere");
+	vertices.clear();
+	indices.clear();
+}
 
+// This function gets any event calls from the engine
+void Icosphere::_notification(int p_what) {
+
+	// print_line(vformat("notification: what: %d", p_what));
+	switch (p_what) {
+
+		case NOTIFICATION_READY: {
+			_ready();
+		} break;
+		default:
+			break;
+
+	}
 }
 
 void Icosphere::_process(double delta) {}
@@ -57,14 +36,40 @@ void Icosphere::_process(double delta) {}
 void Icosphere::_bind_methods()
 {
 	print_line("Icosphere::~_bind_methods");
-	ClassDB::bind_method(D_METHOD("_ready"), &Icosphere::_ready);
+
+	ClassDB::bind_method(D_METHOD("setRadius", "radius"), &Icosphere::setRadius);
+	ClassDB::bind_method(D_METHOD("getRadius"), &Icosphere::getRadius);
+
+	ClassDB::bind_method(D_METHOD("setSubdivisions", "subdivisions"), &Icosphere::setSubdivisions);
+	ClassDB::bind_method(D_METHOD("getSubdivisions"), &Icosphere::getSubdivisions);
+
+	// Optionally, add property information for better editor integration
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "radius", PROPERTY_HINT_RANGE, "0.01,100,0.01"), "setRadius", "getRadius");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "subdivisions", PROPERTY_HINT_RANGE, "0,10,1"), "setSubdivisions", "getSubdivisions");
+}
+
+void Icosphere::setRadius(float p_radius) {
+	radius = p_radius;
+	this->update();
+}
+
+float Icosphere::getRadius() const {
+	return radius;
+}
+
+void Icosphere::setSubdivisions(int p_subdivisions) {
+	subdivisions = MAX(0, p_subdivisions); // Ensure subdivisions is never negative
+	this->update();
+}
+
+int Icosphere::getSubdivisions() const {
+	return subdivisions;
 }
 
 // This function gets called when the node is spawned
 void Icosphere::_ready()
 {
 	print_line("Icosphere::_ready");
-	this->generateMesh();
 }
 
 void _process(double delta) {
@@ -78,9 +83,9 @@ int Icosphere::addVertex(const Vector3& vertex) {
 }
 
 void Icosphere::addFace(int v1, int v2, int v3) {
-	indices.push_back(v1);
-	indices.push_back(v2);
 	indices.push_back(v3);
+	indices.push_back(v2);
+	indices.push_back(v1);
 }
 
 void Icosphere::subdivide(int levels) {
@@ -122,7 +127,7 @@ int Icosphere::getOrCreateMidpointIndex(int index1, int index2) {
 
 	// Create a new midpoint vertex
 	Vector3 midpoint = vertices[index1].lerp(vertices[index2], 0.5);
-	midpoint.normalize();
+	midpoint = midpoint.normalized() * this->radius;
 	int midpointIndex = vertices.size();
 	vertices.push_back(midpoint);
 
@@ -135,15 +140,85 @@ int Icosphere::getOrCreateMidpointIndex(int index1, int index2) {
 void Icosphere::generateMesh() {
 	print_line("Icosphere::generateMesh");
 	Ref<ArrayMesh> mesh = memnew(ArrayMesh);
+	mesh.instantiate();
 	Array arrays;
 	arrays.resize(Mesh::ARRAY_MAX);
 
+	// Set vertices
 	arrays[Mesh::ARRAY_VERTEX] = vertices;
 
+	// Calculate and set normals
+	PackedVector3Array normals;
+	for (int i = 0; i < vertices.size(); i++) {
+		Vector3 normal = vertices[i].normalized();
+		normals.push_back(normal);
+		// Debug output for each normal
+		// String normalStr = vformat("Normal %d: (%f, %f, %f)", i, normal.x, normal.y, normal.z);
+		// print_line(normalStr);
+	}
+	arrays[Mesh::ARRAY_NORMAL] = normals;
+
+	// Set indices for faces
 	if (!indices.is_empty()) {
 		arrays[Mesh::ARRAY_INDEX] = indices;
 	}
 
 	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
 	set_mesh(mesh);
+}
+
+void Icosphere::update() {
+	// Reset to the base icosahedron before applying subdivisions
+	this->initializeBaseIcosahedron();
+
+	// Apply subdivisions
+	this->subdivide(this->subdivisions);
+
+	// Generate the new mesh
+	this->generateMesh();
+}
+
+void Icosphere::initializeBaseIcosahedron() {
+	vertices.clear();
+	indices.clear();
+
+	float phi = (1.0f + sqrt(5.0f)) * 0.5f; // golden ratio
+	float a = 1.0f;
+	float b = 1.0f / phi;
+
+	// Add vertices
+	this->addVertex(Vector3(0, b, -a).normalized() * this->radius);  // v0
+	this->addVertex(Vector3(b, a, 0).normalized() * this->radius);   // v1
+	this->addVertex(Vector3(-b, a, 0).normalized() * this->radius);  // v2
+	this->addVertex(Vector3(0, b, a).normalized() * this->radius);   // v3
+	this->addVertex(Vector3(0, -b, a).normalized() * this->radius);  // v4
+	this->addVertex(Vector3(-a, 0, b).normalized() * this->radius);  // v5
+	this->addVertex(Vector3(0, -b, -a).normalized() * this->radius); // v6
+	this->addVertex(Vector3(a, 0, -b).normalized() * this->radius);  // v7
+	this->addVertex(Vector3(a, 0, b).normalized() * this->radius);   // v8
+	this->addVertex(Vector3(-a, 0, -b).normalized() * this->radius); // v9
+	this->addVertex(Vector3(b, -a, 0).normalized() * this->radius);  // v10
+	this->addVertex(Vector3(-b, -a, 0).normalized() * this->radius); // v11
+
+	// Add faces
+	this->addFace(2, 1, 0);
+	this->addFace(2, 3, 1);
+	this->addFace(5, 4, 3);
+	this->addFace(4, 8, 3);
+	this->addFace(7, 6, 0);
+	this->addFace(6, 9, 0);
+	this->addFace(11, 10, 4);
+	this->addFace(10, 11, 6);
+	this->addFace(9, 5, 2);
+	this->addFace(5, 9, 11);
+	this->addFace(8, 7, 1);
+	this->addFace(7, 8, 10);
+	this->addFace(2, 5, 3);
+	this->addFace(8, 1, 3);
+	this->addFace(9, 2, 0);
+	this->addFace(1, 7, 0);
+	this->addFace(11, 9, 6);
+	this->addFace(7, 10, 6);
+	this->addFace(5, 11, 4);
+	this->addFace(10, 8, 4);
 }
