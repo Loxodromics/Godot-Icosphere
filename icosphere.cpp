@@ -3,15 +3,12 @@
 #include <iostream>
 
 Icosphere::Icosphere() {
-	print_line("Icosphere::Icosphere");
-
 	this->initializeBaseIcosahedron();
 	this->subdivide(this->subdivisions);
 	this->generateMesh();
 }
 
 Icosphere::~Icosphere() {
-	print_line("Icosphere::~Icosphere");
 	vertices.clear();
 	indices.clear();
 }
@@ -42,9 +39,7 @@ PackedInt32Array Icosphere::getIndices() const {
 	return this->indices;
 }
 
-void Icosphere::_bind_methods()
-{
-	print_line("Icosphere::~_bind_methods");
+void Icosphere::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("setRadius", "radius"), &Icosphere::setRadius);
 	ClassDB::bind_method(D_METHOD("getRadius"), &Icosphere::getRadius);
@@ -72,10 +67,7 @@ void Icosphere::_notification(int p_what) {
 }
 
 // This function gets called when the node is spawned
-void Icosphere::_ready()
-{
-	print_line("Icosphere::_ready");
-}
+void Icosphere::_ready(){ }
 
 void Icosphere::subdivide(int levels) {
 	for (int level = 0; level < levels; ++level) {
@@ -105,7 +97,6 @@ void Icosphere::subdivide(int levels) {
 }
 
 void Icosphere::generateMesh() {
-	print_line("Icosphere::generateMesh");
 	Ref<ArrayMesh> mesh = memnew(ArrayMesh);
 	mesh.instantiate();
 	Array arrays;

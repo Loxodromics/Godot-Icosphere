@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project provides a custom `Icosphere` generator as a module for the Godot 4 Engine. It allows for the creation of icospheres with adjustable radius and subdivision levels directly within Godot, complete with UV mapping and vertex colors support.
+This project provides a custom `Icosphere` generator as a module for the Godot 4 Engine. It allows for the creation of icospheres with adjustable radius and subdivision levels directly within Godot, complete with UV mapping and vertex colors support. It is written in C++ as a Godot Module.
 
 ## Features
 
