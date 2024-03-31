@@ -147,16 +147,24 @@ void Icosphere::generateMesh() {
 	// Set vertices
 	arrays[Mesh::ARRAY_VERTEX] = vertices;
 
-	// Calculate and set normals
+	// Calculate and set normals and UVs
 	PackedVector3Array normals;
+	PackedVector2Array uvs; // For UV coordinates
 	for (int i = 0; i < vertices.size(); i++) {
 		Vector3 normal = vertices[i].normalized();
 		normals.push_back(normal);
+
 		// Debug output for each normal
 		// String normalStr = vformat("Normal %d: (%f, %f, %f)", i, normal.x, normal.y, normal.z);
 		// print_line(normalStr);
+
+		// Calculate UV coordinates based on vertex position
+		float u = atan2(normal.x, normal.z) / (2.0 * Math_PI) + 0.5;
+		float v = acos(normal.y) / Math_PI; // Adjusted to flip the texture
+		uvs.push_back(Vector2(u, v)); // Use Vector2 for UV coordinates
 	}
 	arrays[Mesh::ARRAY_NORMAL] = normals;
+	arrays[Mesh::ARRAY_TEX_UV] = uvs;
 
 	// Set indices for faces
 	if (!indices.is_empty()) {
